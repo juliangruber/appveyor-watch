@@ -8,7 +8,7 @@
     "gh-canonical-repository": "^2.0.0",
     "git-current-commit": "^1.0.0",
     "got": "^6.7.1",
-    "render-ci-matrix": "^1.1.0"
+    "render-ci-matrix": "^2.0.0"
   },
   "devDependencies": {
     "prettier-standard-formatter": "^0.222222222222222.333333333333333",
