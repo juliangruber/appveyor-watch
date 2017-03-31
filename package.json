@@ -1,6 +1,6 @@
 {
   "name": "appveyor-watch",
-  "version": "1.16.1",
+  "version": "0.0.0",
   "license": "MIT",
   "repository": "juliangruber/appveyor-watch",
   "dependencies": {
