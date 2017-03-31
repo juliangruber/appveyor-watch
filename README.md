@@ -1,21 +1,21 @@
 
-# travis-watch [![Build Status](https://travis-ci.org/juliangruber/travis-watch.svg?branch=master)](https://travis-ci.org/juliangruber/travis-watch) [![Greenkeeper badge](https://badges.greenkeeper.io/juliangruber/travis-watch.svg)](https://greenkeeper.io/)
+# appveyor-watch [![Build Status](https://appveyor-ci.org/juliangruber/appveyor-watch.svg?branch=master)](https://appveyor-ci.org/juliangruber/appveyor-watch) [![Greenkeeper badge](https://badges.greenkeeper.io/juliangruber/appveyor-watch.svg)](https://greenkeeper.io/)
 
-Stream live travis test results of the current commit to your terminal. Exits with the proper exit code too!
+Stream live appveyor test results of the current commit to your terminal. Exits with the proper exit code too!
 
 ![screenshot](screenshot.png)
 
 ## Installation
 
 ```bash
-$ npm install -g travis-watch
+$ npm install -g appveyor-watch
 ```
 
 ## Usage
 
 ```bash
-$ travis-watch --help
-Usage: travis-watch [DIRECTORY]
+$ appveyor-watch --help
+Usage: appveyor-watch [DIRECTORY]
 ```
 
 ## Supported build environments
@@ -26,14 +26,14 @@ Usage: travis-watch [DIRECTORY]
 - Go
 - Python
 
-For more, please [open an issue](https://github.com/juliangruber/travis-watch/issues/new).
+For more, please [open an issue](https://github.com/juliangruber/appveyor-watch/issues/new).
 
 ## JavaScript API
 
 ```js
 const differ = require('ansi-diff-stream')
 const render = require('render-ci-matrix')()
-const Watch = require('travis-watch')
+const Watch = require('appveyor-watch')
 
 const diff = differ()
 diff.pipe(process.stdout)
@@ -55,7 +55,6 @@ watch.on('finish', () => {
 ## Kudos
 
 - Development of this module is sponsored by the [Dat Project](https://datproject.org/).
-- Travis is :heart:
 
 ## Related
 

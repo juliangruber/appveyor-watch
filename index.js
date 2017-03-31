@@ -1,14 +1,10 @@
 'use strict'
 
-const Travis = require('travis-ci')
 const getCommit = require('git-current-commit').sync
 const EventEmitter = require('events')
 const inherits = require('util').inherits
-const sort = require('sort-keys')
-const cmp = require('./lib/compare')
 const canonical = require('gh-canonical-repository')
-
-const travis = new Travis({ version: '2.0.0' })
+const got = require('got')
 
 module.exports = Watch
 inherits(Watch, EventEmitter)
@@ -20,7 +16,10 @@ function Watch (dir) {
   this._dir = dir
   this.state = {
     started: new Date(),
-    commit: { sha: getCommit(dir) },
+    commit: {
+      sha: getCommit(dir),
+      found: true
+    },
     link: null,
     repo: null,
     build: null,
@@ -33,113 +32,81 @@ Watch.prototype._getBuilds = function (cb) {
   const onrepo = (err, repo) => {
     if (err) return cb(err)
     this.state.repo = repo
-    travis
-      .repos(this.state.repo[0], this.state.repo[1])
-      .builds.get({ event_type: 'push' }, cb)
+    const url = `https://ci.appveyor.com/api/projects/${this.state.repo[0]}/${this.state.repo[1]}/history?recordsNumber=50`
+    got(url, { json: true })
+      .then(res => setImmediate(() => cb(null, res.body.builds)))
+      .catch(err => setImmediate(() => cb(err)))
   }
 
   if (this.state.repo) onrepo(null, this.state.repo)
-  else canonical(this._dir, onrepo, onrepo)
+  else canonical(this._dir, onrepo, () => {}) // FIXME
 }
 
-Watch.prototype._findCommit = function (commits) {
-  return commits.find(c => c.sha === this.state.commit.sha)
+Watch.prototype._getResolvedBuild = function (build, cb) {
+  const url = `https://ci.appveyor.com/api/projects/${this.state.repo[0]}/${this.state.repo[1]}/build/${build.buildNumber || build.number}`
+  got(url, { json: true })
+    .then(res => setImmediate(() => cb(null, res.body.build)))
+    .catch(err => setImmediate(() => cb(err)))
 }
 
 Watch.prototype._findBuild = function (builds) {
-  return builds.find(b => b.commit_id === this.state.commit.id)
+  return builds.find(b => b.commitId === this.state.commit.sha)
 }
 
 Watch.prototype._link = function () {
-  return `https://travis-ci.org/${this.state.repo[0]}/${this.state.repo[1]}/builds/${this.state.build.id}`
+  return `https://ci.appveyor.com/project/${this.state.repo[0]}/${this.state.repo[1]}/build/${this.state.build.number}`
 }
 
 Watch.prototype._getBuild = function (cb) {
-  this._getBuilds((err, res) => {
+  const onBuild = (err, build) => {
     if (err) return cb(err)
-    if (!res.builds.length) return setTimeout(() => this._getBuild(cb), 500)
-    const commit = this._findCommit(res.commits)
-    if (!commit) return setTimeout(() => this._getBuild(cb), 1000)
-    this.state.commit = commit
-    const build = this._findBuild(res.builds)
-    if (!build) return this._getBuild(cb)
-    this.state.build = build
-    this.state.link = this._link()
+    this.state.build = {
+      jobs: build.jobs,
+      number: build.buildNumber,
+      status: build.status
+    }
     cb()
-  })
-}
-
-const fixOSXBug = job => {
-  if (
-    job.config.os === 'osx' &&
-    job.state === 'started' &&
-    new Date(job.started_at) > new Date()
-  ) {
-    job.state = 'created'
   }
-}
 
-const getJob = (id, cb) => {
-  travis.jobs(id).get((err, res) => {
+  if (this.state.build && this.state.build.number) {
+    return this._getResolvedBuild(this.state.build, onBuild)
+  }
+
+  this._getBuilds((err, builds) => {
     if (err) return cb(err)
-    fixOSXBug(res.job)
-    cb(null, res.job)
+    const tmpBuild = this._findBuild(builds)
+    if (!tmpBuild) return this._getBuild(cb)
+    this.state.commit.branch = tmpBuild.branch
+    this._getResolvedBuild(tmpBuild, onBuild)
   })
 }
-
-const getJobKey = job => JSON.stringify(job.config)
-
-const getLanguageVersion = job =>
-  job.config.language === 'ruby'
-    ? String(job.config.rvm)
-    : job.config.language === 'android'
-        ? '?'
-        : String(job.config[job.config.language]) || '?'
 
 Watch.prototype.start = function () {
-  this._getBuild(err => {
+  const check = err => {
     if (err) return this.emit('error', err)
 
-    let todo = this.state.build.job_ids.length
-
-    this.state.build.job_ids.forEach(jobId => {
-      const check = (err, job) => {
-        if (err) return this.emit('error', err)
-        job.version = getLanguageVersion(job)
-        job.key = getJobKey(job)
-        if (!this.state.results[job.config.os]) {
-          this.state.results[job.config.os] = {}
-          this.state.results = sort(this.state.results)
-        }
-        if (this.state.results[job.config.os][job.key]) {
-          this.state.results[job.config.os][job.key] = job
-        } else {
-          this.state.results[job.config.os][job.key] = job
-          Object.keys(this.state.results).forEach(os => {
-            this.state.results[os] = sort(this.state.results[os], (a, b) =>
-              cmp(this.state.results[os][a], this.state.results[os][b]))
-          })
-        }
-        if (job.state === 'failed' && !job.allow_failure) {
-          this.state.success = false
-        }
-        if (
-          job.state === 'started' ||
-          job.state === 'created' ||
-          job.state === 'received' ||
-          job.state === 'queued'
-        ) {
-          setTimeout(() => getJob(jobId, check), 1000)
-        } else {
-          if (!--todo) {
-            if (typeof this.state.success !== 'boolean') {
-              this.state.success = true
-            }
-            this.emit('finish')
-          }
-        }
+    if (this.state.build.status === 'success') {
+      this.state.success = true
+    } else if (this.state.build.status === 'failure') {
+      this.state.success = false
+    }
+    this.state.link = this._link()
+    this.state.results = { windows: {} }
+    this.state.build.jobs.forEach(job => {
+      this.state.results.windows[job.jobId] = {
+        state: {
+          success: 'passed',
+          running: 'started'
+        }[job.status],
+        allowFailure: job.allowFailure,
+        name: job.name,
+        startedAt: job.started
       }
-      getJob(jobId, check)
     })
-  })
+
+    if (typeof this.state.success !== 'boolean') return this._getBuild(check)
+    this.emit('finish')
+  }
+
+  this._getBuild(check)
 }

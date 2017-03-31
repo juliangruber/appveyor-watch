@@ -15,29 +15,27 @@ const dir = resolve(process.argv[2] || '.')
 try {
   fs.statSync(dir)
 } catch (err) {
-  console.error('Usage: travis-watch [DIRECTORY]')
+  console.error('Usage: appveyor-watch [DIRECTORY]')
   process.exit(1)
 }
 
 try {
-  fs.statSync(`${dir}/.travis.yml`)
+  fs.statSync(`${dir}/appveyor.yml`)
 } catch (err) {
-  console.error('Travis not set up. Skipping...')
+  console.error('AppVeyor not set up. Skipping...')
   process.exit(0)
+}
+
+const update = () => {
+  diff.reset()
+  diff.write(render(watch.state))
 }
 
 const watch = new Watch(dir)
 watch.start()
 watch.on('finish', () => {
-  diff.reset()
-  diff.write(render(watch.state))
+  update()
   process.exit(!watch.state.success)
 })
 
-setInterval(
-  () => {
-    diff.reset() // FIXME
-    diff.write(render(watch.state))
-  },
-  100
-)
+setInterval(update, 100)
