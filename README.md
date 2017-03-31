@@ -1,5 +1,5 @@
 
-# appveyor-watch [![Build Status](https://appveyor-ci.org/juliangruber/appveyor-watch.svg?branch=master)](https://appveyor-ci.org/juliangruber/appveyor-watch) [![Greenkeeper badge](https://badges.greenkeeper.io/juliangruber/appveyor-watch.svg)](https://greenkeeper.io/)
+# appveyor-watch 
 
 Stream live appveyor test results of the current commit to your terminal. Exits with the proper exit code too!
 
@@ -17,16 +17,6 @@ $ npm install -g appveyor-watch
 $ appveyor-watch --help
 Usage: appveyor-watch [DIRECTORY]
 ```
-
-## Supported build environments
-
-- Node.js
-- Ruby
-- PHP
-- Go
-- Python
-
-For more, please [open an issue](https://github.com/juliangruber/appveyor-watch/issues/new).
 
 ## JavaScript API
 
@@ -58,6 +48,7 @@ watch.on('finish', () => {
 
 ## Related
 
+- __[travis-watch](https://github.com/juliangruber/travis-watch)__ &mdash; Stream live travis test results of the current commit to your terminal!
 - __[ansi-diff-stream](https://github.com/mafintosh/ansi-diff-stream)__ &mdash; A transform stream that diffs input buffers and outputs the diff as ANSI. If you pipe this to a terminal it will update the output with minimal changes
 - __[render-ci-matrix](https://github.com/juliangruber/render-ci-matrix)__ &mdash; Render a CI results matrix to the terminal.
 
